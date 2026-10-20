@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tracker">
+<meta name="theme-color" content="#0b0d12">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Tracker</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --card: #151a23;
+    --card-2: #1c2330;
+    --line: #28303d;
+    --text: #f2f5fa;
+    --muted: #8b97a8;
+    --accent: #4fd1c5;
+    --good: #3ddc84;
+    --bad: #ff7a59;
+    --c-lozenge: #e6ebf2;
+    --c-gum: #7cc4ff;
+    --c-cig: #ff7a59;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+  body { padding: max(20px, env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom)); max-width: 540px; margin: 0 auto; }
+
+  .date { font-size: 13px; color: var(--muted); margin: 0 0 12px 2px; }
+
+  .buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+  .tbtn { background: var(--card); border: 1px solid var(--line); color: var(--text);
+    border-radius: 18px; padding: 16px 4px 14px; cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; font-family: inherit; transition: transform .06s ease, background .15s ease; }
+  .tbtn:active { transform: scale(.94); background: var(--card-2); }
+  .tbtn .e { font-size: 40px; line-height: 1; }
+  .tbtn .n { font-size: 15px; font-weight: 700; }
+  .tbtn .p { font-size: 12px; color: var(--muted); }
+
+  .today { background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    padding: 18px; margin-bottom: 10px; display: flex; align-items: center; gap: 18px; }
+  .today-num { font-size: 64px; font-weight: 800; letter-spacing: -2px; line-height: 1; min-width: 72px; text-align: center; }
+  .today-right { flex: 1; min-width: 0; }
+  .today-label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .compare { font-size: 15px; font-weight: 700; margin-top: 4px; }
+  .compare.good { color: var(--good); }
+  .compare.bad { color: var(--bad); }
+  .compare.even { color: var(--muted); }
+  .breakdown { font-size: 14px; color: var(--muted); margin-top: 8px; }
+  .breakdown span { margin-right: 10px; white-space: nowrap; }
+  .since { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .stats { display: flex; gap: 10px; margin-bottom: 24px; }
+  .stat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 8px; text-align: center; }
+  .stat .v { font-size: 22px; font-weight: 800; }
+  .stat .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted);
+    margin: 0 0 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; }
+  h2 button { background: none; border: none; color: var(--accent); font-size: 13px; font-weight: 600;
+    text-transform: none; letter-spacing: 0; cursor: pointer; padding: 0; font-family: inherit; }
+  .section { margin-bottom: 26px; }
+
+  .chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; margin-bottom: 8px; }
+  .col { flex: 1; height: 100%; display: flex; flex-direction: column-reverse; cursor: pointer;
+    border-radius: 3px; padding-bottom: 0; position: relative; }
+  .col .seg { width: 100%; }
+  .col .seg:last-child { border-radius: 3px 3px 0 0; }
+  .col .zero { height: 2px; background: var(--card-2); border-radius: 2px; }
+  .col.sel::after { content: ""; position: absolute; left: -1px; right: -1px; bottom: -6px; height: 3px;
+    background: var(--text); border-radius: 2px; }
+  .seg.lozenge { background: var(--c-lozenge); }
+  .seg.gum { background: var(--c-gum); }
+  .seg.cig { background: var(--c-cig); }
+  .chart-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 10px; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+
+  .entry { display: flex; gap: 12px; align-items: flex-start; padding: 12px 2px;
+    border-bottom: 1px solid var(--line); cursor: pointer; }
+  .entry:last-child { border-bottom: none; }
+  .entry .e { font-size: 22px; line-height: 1.2; }
+  .entry .mid { flex: 1; min-width: 0; }
+  .entry .why { font-size: 15px; line-height: 1.35; word-wrap: break-word; }
+  .entry .when { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .entry .pts { font-size: 14px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .empty { color: var(--muted); font-size: 14px; padding: 12px 2px; }
+
+  .footer { display: flex; gap: 18px; justify-content: center; margin-top: 10px; }
+  .footer button { background: none; border: none; color: var(--muted); font-size: 13px;
+    cursor: pointer; text-decoration: underline; font-family: inherit; }
+
+  /* sheet: anchored to the top so the iPhone keyboard never covers it */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; z-index: 40; }
+  .overlay.show { display: block; }
+  .sheet { position: absolute; left: 12px; right: 12px; top: max(16px, env(safe-area-inset-top));
+    max-width: 516px; margin: 0 auto; background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 18px; }
+  .sheet-title { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+  .sheet-title .e { font-size: 30px; }
+  .sheet-title .p { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: auto; }
+  .sheet label { display: block; font-size: 13px; color: var(--muted); margin: 16px 0 8px; }
+  .sheet textarea { width: 100%; min-height: 84px; background: var(--bg); border: 1px solid var(--line);
+    color: var(--text); border-radius: 12px; padding: 12px; font-size: 16px; font-family: inherit;
+    resize: none; -webkit-appearance: none; line-height: 1.35; }
+  .sheet textarea:focus { outline: none; border-color: var(--accent); }
+  .sheet input[type=time] { background: var(--bg); border: 1px solid var(--line); color: var(--text);
+    border-radius: 12px; padding: 10px 12px; font-size: 16px; font-family: inherit; color-scheme: dark; }
+  .types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .types button { background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 12px;
+    padding: 10px 4px; font-size: 14px; font-family: inherit; cursor: pointer; }
+  .types button.on { border-color: var(--accent); background: var(--card-2); }
+  .sheet-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .sheet-actions button { flex: 1; border-radius: 14px; padding: 14px; font-size: 16px; font-weight: 700;
+    cursor: pointer; font-family: inherit; border: 1px solid var(--line); background: var(--card-2); color: var(--text); }
+  .sheet-actions .save { background: var(--accent); color: #062421; border-color: var(--accent); }
+  .sheet-actions .save:disabled { background: var(--card-2); color: var(--muted); border-color: var(--line); cursor: default; }
+  .sheet-actions .del { flex: 0 0 auto; color: var(--bad); }
+  .edit-only { display: none; }
+  .editing .edit-only { display: block; }
+  .editing .sheet-actions .del { display: block; }
+  .sheet-actions .del { display: none; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(20px); background: var(--accent); color: #062421;
+    padding: 12px 22px; border-radius: 999px; font-weight: 700; font-size: 15px; opacity: 0;
+    pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 50; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+  <div class="date" id="date"></div>
+
+  <div class="buttons" id="buttons"></div>
+
+  <div class="today">
+    <div class="today-num" id="today-num">0</div>
+    <div class="today-right">
+      <div class="today-label">Points today</div>
+      <div class="compare" id="compare"></div>
+      <div class="breakdown" id="breakdown"></div>
+      <div class="since" id="since"></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="avg7">–</div><div class="l">7-day avg</div></div>
+    <div class="stat"><div class="v" id="yesterday">–</div><div class="l">Yesterday</div></div>
+    <div class="stat"><div class="v" id="nocig">–</div><div class="l">Days since 🚬</div></div>
+  </div>
+
+  <div class="section">
+    <h2>Points per day · last 30 days</h2>
+    <div class="chart" id="chart"></div>
+    <div class="chart-labels"><span id="chart-start"></span><span>today</span></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="section">
+    <h2><span id="day-title">Today</span><button id="back-today" style="display:none">Back to today</button></h2>
+    <div id="entries"></div>
+  </div>
+
+  <div class="footer">
+    <button id="export">Export backup</button>
+    <button id="import">Import backup</button>
+  </div>
+  <input type="file" id="import-file" accept="application/json,.json" style="display:none">
+
+  <div class="overlay" id="overlay">
+    <div class="sheet" id="sheet">
+      <div class="sheet-title"><span class="e" id="s-emoji"></span><span id="s-name"></span><span class="p" id="s-pts"></span></div>
+      <div class="edit-only">
+        <label>Type</label>
+        <div class="types" id="s-types"></div>
+        <label for="s-time">Time</label>
+        <input type="time" id="s-time">
+      </div>
+      <label for="s-why" id="s-why-label">Why now?</label>
+      <textarea id="s-why" placeholder="Type why you're having it…"></textarea>
+      <div class="sheet-actions">
+        <button class="del" id="s-del">Delete</button>
+        <button id="s-cancel">Cancel</button>
+        <button class="save" id="s-save" disabled>Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+const STORE_KEY = "tracker.v1";
+const TYPES = {
+  lozenge: { emoji: "⚪️", name: "Lozenge",   pts: 1 },
+  gum:     { emoji: "🫧", name: "Gum",       pts: 2 },
+  cig:     { emoji: "🚬", name: "Cigarette", pts: 5 }
+};
+const ORDER = ["lozenge", "gum", "cig"];
+const DAY = 86400000;
+
+let state = load();          // { entries: [{id, ts, type, reason}] }
+let selectedDay = null;      // null = today
+let sheet = null;            // { mode: "add"|"edit", type, ts, id }
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) { const d = JSON.parse(raw); if (d && Array.isArray(d.entries)) return d; }
+  } catch (e) {}
+  return { entries: [] };
+}
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+
+function dayKey(ts) {
+  const d = new Date(ts);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function todayKey() { return dayKey(Date.now()); }
+function startOfDay(ts) { const d = new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+function shiftDay(key, n) { const [y,m,d] = key.split("-").map(Number); return dayKey(new Date(y, m-1, d + n).getTime()); }
+function daysBetween(a, b) { // whole calendar days from key a to key b
+  const [y1,m1,d1] = a.split("-").map(Number), [y2,m2,d2] = b.split("-").map(Number);
+  return Math.round((Date.UTC(y2,m2-1,d2) - Date.UTC(y1,m1-1,d1)) / DAY);
+}
+function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+function fmtDay(key, opts) { const [y,m,d] = key.split("-").map(Number); return new Date(y, m-1, d).toLocaleDateString([], opts); }
+function round1(n) { return Math.round(n * 10) / 10; }
+
+function byDay() {
+  const map = {};
+  for (const e of state.entries) {
+    const k = dayKey(e.ts);
+    if (!map[k]) map[k] = { pts: 0, lozenge: 0, gum: 0, cig: 0 };
+    map[k].pts += TYPES[e.type].pts;
+    map[k][e.type] += 1;
+  }
+  return map;
+}
+function firstDayKey() {
+  if (!state.entries.length) return null;
+  return dayKey(Math.min(...state.entries.map(e => e.ts)));
+}
+
+function render() {
+  const days = byDay();
+  const tk = todayKey();
+  const t = days[tk] || { pts: 0, lozenge: 0, gum: 0, cig: 0 };
+  const first = firstDayKey();
+
+  document.getElementById("date").textContent = fmtDay(tk, { weekday: "long", month: "long", day: "numeric" });
+
+  // 7-day average of the full days before today (only counting days since you started)
+  let sum = 0, n = 0;
+  for (let i = 1; i <= 7; i++) {
+    const k = shiftDay(tk, -i);
+    if (first && k >= first) { sum += (days[k] ? days[k].pts : 0); n++; }
+  }
+  const avg = n ? sum / n : null;
+
+  document.getElementById("today-num").textContent = t.pts;
+  const cmp = document.getElementById("compare");
+  if (avg === null) { cmp.className = "compare even"; cmp.textContent = "Your average starts tomorrow"; }
+  else {
+    const diff = round1(t.pts - avg);
+    if (diff < 0) { cmp.className = "compare good"; cmp.textContent = "▼ " + Math.abs(diff) + " under your 7-day avg"; }
+    else if (diff > 0) { cmp.className = "compare bad"; cmp.textContent = "▲ " + diff + " over your 7-day avg"; }
+    else { cmp.className = "compare even"; cmp.textContent = "Right at your 7-day avg"; }
+  }
+  document.getElementById("breakdown").innerHTML = ORDER.map(k => "<span>" + TYPES[k].emoji + " " + t[k] + "</span>").join("");
+
+  const last = state.entries.reduce((m, e) => Math.max(m, e.ts), 0);
+  const since = document.getElementById("since");
+  if (last) {
+    const mins = Math.max(0, Math.floor((Date.now() - last) / 60000));
+    const h = Math.floor(mins / 60), m = mins % 60;
+    since.textContent = "Last one " + (h ? h + "h " : "") + m + "m ago";
+  } else since.textContent = "";
+
+  document.getElementById("avg7").textContent = avg === null ? "–" : round1(avg);
+  const yk = shiftDay(tk, -1);
+  document.getElementById("yesterday").textContent = (first && yk >= first) ? (days[yk] ? days[yk].pts : 0) : "–";
+  const cigs = state.entries.filter(e => e.type === "cig");
+  document.getElementById("nocig").textContent = cigs.length ? daysBetween(dayKey(Math.max(...cigs.map(e => e.ts))), tk) : "–";
+
+  // chart: last 30 days, stacked by type (cigarettes at the bottom)
+  const chart = document.getElementById("chart");
+  chart.innerHTML = "";
+  let max = 1;
+  for (let i = 0; i < 30; i++) { const d = days[shiftDay(tk, -i)]; if (d) max = Math.max(max, d.pts); }
+  const sel = selectedDay || tk;
+  for (let i = 29; i >= 0; i--) {
+    const k = shiftDay(tk, -i);
+    const d = days[k];
+    const col = document.createElement("div");
+    col.className = "col" + (k === sel ? " sel" : "");
+    col.dataset.day = k;
+    if (!d || !d.pts) col.innerHTML = '<div class="zero"></div>';
+    else for (const type of ["cig", "gum", "lozenge"]) {
+      if (!d[type]) continue;
+      const seg = document.createElement("div");
+      seg.className = "seg " + type;
+      seg.style.height = (d[type] * TYPES[type].pts / max * 100) + "%";
+      col.appendChild(seg);
+    }
+    chart.appendChild(col);
+  }
+  document.getElementById("chart-start").textContent = fmtDay(shiftDay(tk, -29), { month: "short", day: "numeric" });
+
+  // entries for the selected day
+  const dayTitle = document.getElementById("day-title");
+  const dk = selectedDay || tk;
+  const dpts = days[dk] ? days[dk].pts : 0;
+  dayTitle.textContent = (dk === tk ? "Today" : fmtDay(dk, { weekday: "short", month: "short", day: "numeric" })) + " · " + dpts + " pt" + (dpts === 1 ? "" : "s");
+  document.getElementById("back-today").style.display = dk === tk ? "none" : "inline";
+
+  const list = document.getElementById("entries");
+  const items = state.entries.filter(e => dayKey(e.ts) === dk).sort((a, b) => b.ts - a.ts);
+  list.innerHTML = "";
+  if (!items.length) {
+    list.innerHTML = '<div class="empty">' + (dk === tk ? "Nothing logged today." : "Nothing logged this day.") + "</div>";
+  }
+  for (const e of items) {
+    const row = document.createElement("div");
+    row.className = "entry";
+    row.dataset.id = e.id;
+    const em = document.createElement("div"); em.className = "e"; em.textContent = TYPES[e.type].emoji;
+    const mid = document.createElement("div"); mid.className = "mid";
+    const why = document.createElement("div"); why.className = "why"; why.textContent = e.reason;
+    const when = document.createElement("div"); when.className = "when"; when.textContent = fmtTime(e.ts) + " · " + TYPES[e.type].name;
+    mid.append(why, when);
+    const pts = document.createElement("div"); pts.className = "pts"; pts.textContent = "+" + TYPES[e.type].pts;
+    row.append(em, mid, pts);
+    list.appendChild(row);
+  }
+}
+
+// ---------- sheet ----------
+const overlay = document.getElementById("overlay");
+const whyBox = document.getElementById("s-why");
+const saveBtn = document.getElementById("s-save");
+
+function paintSheetType() {
+  const t = TYPES[sheet.type];
+  document.getElementById("s-emoji").textContent = t.emoji;
+  document.getElementById("s-name").textContent = t.name;
+  document.getElementById("s-pts").textContent = "+" + t.pts + " pt" + (t.pts === 1 ? "" : "s");
+  document.querySelectorAll("#s-types button").forEach(b => b.classList.toggle("on", b.dataset.type === sheet.type));
+}
+function openAdd(type) {
+  sheet = { mode: "add", type, ts: Date.now() };   // timestamp = the moment you tapped
+  document.getElementById("sheet").classList.remove("editing");
+  document.getElementById("s-why-label").textContent = "Why now? (" + fmtTime(sheet.ts) + ")";
+  whyBox.value = "";
+  paintSheetType();
+  updateSave();
+  overlay.classList.add("show");
+  whyBox.focus();
+}
+function openEdit(id) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  sheet = { mode: "edit", type: e.type, ts: e.ts, id };
+  document.getElementById("sheet").classList.add("editing");
+  document.getElementById("s-why-label").textContent = "Why";
+  const d = new Date(e.ts);
+  document.getElementById("s-time").value = String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+  whyBox.value = e.reason;
+  paintSheetType();
+  updateSave();
+  overlay.classList.add("show");
+}
+function closeSheet() { overlay.classList.remove("show"); whyBox.blur(); sheet = null; }
+function updateSave() { saveBtn.disabled = whyBox.value.trim() === ""; }
+
+saveBtn.addEventListener("click", () => {
+  const reason = whyBox.value.trim();
+  if (!reason || !sheet) return;
+  if (sheet.mode === "add") {
+    state.entries.push({ id: sheet.ts.toString(36) + Math.random().toString(36).slice(2, 6), ts: sheet.ts, type: sheet.type, reason });
+    save(); closeSheet(); selectedDay = null; render();
+    toast("Logged · " + (byDay()[todayKey()].pts) + " pts today");
+  } else {
+    const e = state.entries.find(x => x.id === sheet.id);
+    const tv = document.getElementById("s-time").value;
+    if (e) {
+      e.type = sheet.type; e.reason = reason;
+      if (/^\d\d:\d\d$/.test(tv)) { const d = new Date(e.ts); d.setHours(+tv.slice(0,2), +tv.slice(3), 0, 0); e.ts = d.getTime(); }
+    }
+    save(); closeSheet(); render(); toast("Updated");
+  }
+});
+document.getElementById("s-del").addEventListener("click", () => {
+  if (!sheet || sheet.mode !== "edit") return;
+  if (!confirm("Delete this entry?")) return;
+  state.entries = state.entries.filter(x => x.id !== sheet.id);
+  save(); closeSheet(); render(); toast("Deleted");
+});
+document.getElementById("s-cancel").addEventListener("click", closeSheet);
+overlay.addEventListener("click", e => { if (e.target === overlay) closeSheet(); });
+whyBox.addEventListener("input", updateSave);
+
+// ---------- build buttons ----------
+const btnWrap = document.getElementById("buttons");
+const typeWrap = document.getElementById("s-types");
+const legend = document.getElementById("legend");
+for (const k of ORDER) {
+  const t = TYPES[k];
+  const b = document.createElement("button");
+  b.className = "tbtn";
+  b.innerHTML = '<span class="e"></span><span class="n"></span><span class="p"></span>';
+  b.querySelector(".e").textContent = t.emoji;
+  b.querySelector(".n").textContent = t.name;
+  b.querySelector(".p").textContent = t.pts + " pt" + (t.pts === 1 ? "" : "s");
+  b.addEventListener("click", () => openAdd(k));
+  btnWrap.appendChild(b);
+
+  const tb = document.createElement("button");
+  tb.dataset.type = k;
+  tb.textContent = t.emoji + " " + t.name;
+  tb.addEventListener("click", () => { sheet.type = k; paintSheetType(); });
+  typeWrap.appendChild(tb);
+
+  const lg = document.createElement("span");
+  lg.innerHTML = '<i style="background:var(--c-' + k + ')"></i>' + t.name;
+  legend.appendChild(lg);
+}
+
+// ---------- day selection ----------
+document.getElementById("chart").addEventListener("click", e => {
+  const col = e.target.closest(".col");
+  if (!col) return;
+  selectedDay = col.dataset.day === todayKey() ? null : col.dataset.day;
+  render();
+});
+document.getElementById("back-today").addEventListener("click", () => { selectedDay = null; render(); });
+document.getElementById("entries").addEventListener("click", e => {
+  const row = e.target.closest(".entry");
+  if (row) openEdit(row.dataset.id);
+});
+
+// ---------- backup ----------
+document.getElementById("export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "tracker-backup-" + todayKey() + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+document.getElementById("import").addEventListener("click", () => document.getElementById("import-file").click());
+document.getElementById("import-file").addEventListener("change", ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      const ok = data && Array.isArray(data.entries) && data.entries.every(e => e && TYPES[e.type] && typeof e.ts === "number");
+      if (!ok) { alert("That doesn't look like a Tracker backup."); return; }
+      if (confirm("Replace current data with this backup (" + data.entries.length + " entries)?")) {
+        state = { entries: data.entries.map(e => ({ id: e.id || (e.ts.toString(36) + Math.random().toString(36).slice(2, 6)), ts: e.ts, type: e.type, reason: String(e.reason || "") })) };
+        save(); selectedDay = null; render(); toast("Backup imported ✓");
+      }
+    } catch (e) { alert("Couldn't read that file."); }
+  };
+  r.readAsText(f);
+  ev.target.value = "";
+});
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+}
+
+// keep "last one … ago" fresh and roll over at midnight
+document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
+setInterval(() => { if (!document.hidden && !sheet) render(); }, 60000);
+
+render();
+</script>
+</body>
+</html>
